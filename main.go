@@ -19,10 +19,10 @@ func main() {
 	if err := GetTLD(fileUrl, filePathRaw); err != nil {
 		panic(err)
 	}
-	//if err := CleanTLDFile(filePathRaw, filePathClean); err != nil {
 	if err := CleanTLDFileX(filePathRaw, filePathClean); err != nil {
 		panic(err)
 	}
+
 }
 
 func GetTLD(url string, filePath string) error {
