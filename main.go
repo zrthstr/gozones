@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 	//"io/ioutil"
-	"net/http"
 	"bufio"
+	"net/http"
 	"os"
 	"regexp"
 )
@@ -42,7 +42,7 @@ func GetTLD(url string, filePath string) error {
 	return err
 }
 
-func CleanTLDFileX(fileInPath string, fileOutPath string)(error){
+func CleanTLDFileX(fileInPath string, fileOutPath string) error {
 	// Clean the zone file
 	// get rid of trailing wild char '.*'
 	// get rid of commented lines i.e. line starting with //
@@ -70,7 +70,7 @@ func CleanTLDFileX(fileInPath string, fileOutPath string)(error){
 		if match {
 			continue
 		}
-		match, _ = regexp.MatchString("^$",line)
+		match, _ = regexp.MatchString("^$", line)
 		if match {
 			continue
 		}
