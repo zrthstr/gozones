@@ -22,7 +22,6 @@ func main() {
 	if err := CleanTLDFileX(filePathRaw, filePathClean); err != nil {
 		panic(err)
 	}
-
 }
 
 func GetTLD(url string, filePath string) error {

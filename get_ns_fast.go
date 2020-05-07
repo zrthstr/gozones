@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/miekg/dns"
-	"net"
 	"os"
 )
 
@@ -21,21 +20,16 @@ func main() {
 	defer fileIn.Close()
 
 	scanner := bufio.NewScanner(fileIn)
+	m := new(dns.Msg)
 	for scanner.Scan() {
 		line := scanner.Text()
 		fmt.Println("testing:", line)
-		nameserver, err := net.LookupNS(line)
-		if err != nil {
-			//return err
-			fmt.Println(err)
-			continue
-		}
-		fmt.Println(nameserver)
+		//m.SetQuestion("miek.nl.", dns.TypeMX)
+		resp := m.SetQuestion(dns.Fqdn(line), dns.TypeNS)
+		fmt.Println(resp)
 	}
-
 	if err := scanner.Err(); err != nil {
 		//return err
 		fmt.Println(err)
 	}
-
 }

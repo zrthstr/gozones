@@ -26,11 +26,13 @@ func main() {
 		fmt.Println("testing:", line)
 		nameserver, err := net.LookupNS(line)
 		if err != nil {
-			//return err
-			fmt.Println(err)
+			//fmt.Println(err)
 			continue
 		}
-		fmt.Println(nameserver)
+		for _, ns := range nameserver {
+			fmt.Println(ns)
+		}
+
 	}
 
 	if err := scanner.Err(); err != nil {
