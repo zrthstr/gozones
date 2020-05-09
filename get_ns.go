@@ -3,19 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/miekg/dns"
 	"net"
 	"os"
 )
 
 func main() {
-	fmt.Println("jooo")
-	mx, err := dns.NewRR("miek.nl. 3600 IN MX 10 mx.miek.nl.")
-	fmt.Println(mx, err)
-
 	fileIn, err := os.Open("tld_clean.lst")
 	if err != nil {
-		//return err
 		fmt.Println(err)
 	}
 	defer fileIn.Close()
@@ -32,11 +26,8 @@ func main() {
 		for _, ns := range nameserver {
 			fmt.Println(ns)
 		}
-
 	}
-
 	if err := scanner.Err(); err != nil {
-		//return err
 		fmt.Println(err)
 	}
 
