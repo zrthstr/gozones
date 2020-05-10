@@ -76,36 +76,6 @@ func getNS(zone Zone) Zone {
 	return zone
 }
 
-func getNSc(zone Zone, c chan Zone) {
-	nameserver, _ := net.LookupNS(zone.fqdn)
-	answer := []string{}
-	for _, ns := range nameserver {
-		answer = append(answer, ns.Host)
-	}
-	zone.ns = answer
-	c <- zone
-}
-
-func getNSp(zone Zone) {
-	nameserver, _ := net.LookupNS(zone.fqdn)
-	answer := []string{}
-	for _, ns := range nameserver {
-		answer = append(answer, ns.Host)
-	}
-}
-
-func getNSx(domain string) {
-	nameserver, err := net.LookupNS(domain)
-	if err != nil {
-		fmt.Println("err:", domain, err)
-	}
-	answer := []string{}
-	for _, ns := range nameserver {
-		//fmt.Println(ns)
-		answer = append(answer, ns.Host)
-	}
-}
-
 func fileToList(fileName string, to []string) ([]string, error) {
 	fileIn, err := os.Open(fileName)
 	if err != nil {
