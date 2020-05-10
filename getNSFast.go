@@ -16,13 +16,17 @@ type Zone struct {
 }
 
 const BUFFERSIZE int = 10000
-const CHANCOUNT int = 20
+const WORKERCOUNT int = 20
+const DOMAINFILE string = "tld_clean.lst"
+
+func readFile() {
+
+}
 
 func main() {
 
-	domainFile := "tld_clean.lst"
 	domains := []string{}
-	domains, err := fileToList(domainFile, domains)
+	domains, err := fileToList(DOMAINFILE, domains)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -36,20 +40,20 @@ func main() {
 	jobs := make(chan Zone, BUFFERSIZE)
 	results := make(chan Zone, BUFFERSIZE)
 
-	for c := 0; c < CHANCOUNT; c++ {
+	for c := 0; c < WORKERCOUNT; c++ {
 		go worker(jobs, results)
 	}
-	go worker(jobs, results)
-	go worker(jobs, results)
-	go worker(jobs, results)
-	go worker(jobs, results)
 
-	//fmt.Println(zones)
+	counter := 0
 	for k, v := range zones {
 		fmt.Println(k, v)
-		//getNS(*v)
+		if counter > 100 {
+			break
+		}
+		counter++
 		jobs <- *v
 	}
+	close(jobs)
 	for {
 		foo := <-results
 		fmt.Println(foo)
@@ -67,12 +71,9 @@ func getNS(zone Zone) Zone {
 	if err != nil {
 		zone.fail = true
 	}
-	//answer := []string{}
 	for _, ns := range nameserver {
-		//answer = append(answer, ns.Host)
 		zone.ns = append(zone.ns, ns.Host)
 	}
-	//zone.ns = answer
 	return zone
 }
 
