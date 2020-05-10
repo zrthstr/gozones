@@ -6,6 +6,7 @@ import (
 	//	"github.com/miekg/dns"
 	"net"
 	"os"
+	"sync"
 )
 
 type Zone struct {
@@ -16,6 +17,8 @@ type Zone struct {
 }
 
 func main() {
+	var wg sync.WaitGroup
+	wg.Add(1)
 	domainFile := "tld_clean.lst"
 	domains := []string{}
 	domains, err := fileToList(domainFile, domains)
@@ -32,6 +35,8 @@ func main() {
 	fmt.Println(zones)
 	for k, v := range zones {
 		fmt.Println(k, v)
+		getNSp(*v)
+		//fmt.Println(foo)
 	}
 
 	//for i, domain := range domains {
@@ -45,19 +50,18 @@ func main() {
 	//fmt.Println(answer, err)
 	//}
 	//fmt.Scanln()
+	wg.Done()
+	wg.Wait()
 }
 
-func getNS(domain string) ([]string, error) {
-	nameserver, err := net.LookupNS(domain)
-	if err != nil {
-		return nil, err
-	}
+//func getNSc(domain zone, c chan Zone) {
+
+func getNSp(zone Zone) {
+	nameserver, _ := net.LookupNS(zone.fqdn)
 	answer := []string{}
 	for _, ns := range nameserver {
-		//fmt.Println(ns)
 		answer = append(answer, ns.Host)
 	}
-	return answer, nil
 }
 
 func getNSx(domain string) {
