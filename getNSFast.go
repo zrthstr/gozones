@@ -16,6 +16,7 @@ type Zone struct {
 }
 
 const BUFFERSIZE int = 10000
+const CHANCOUNT int = 20
 
 func main() {
 
@@ -34,6 +35,10 @@ func main() {
 
 	jobs := make(chan Zone, BUFFERSIZE)
 	results := make(chan Zone, BUFFERSIZE)
+
+	for c := 0; c < CHANCOUNT; c++ {
+		go worker(jobs, results)
+	}
 	go worker(jobs, results)
 	go worker(jobs, results)
 	go worker(jobs, results)
