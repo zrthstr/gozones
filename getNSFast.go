@@ -16,21 +16,17 @@ type Zone struct {
 }
 
 const BUFFERSIZE int = 10000
-const WORKERCOUNT int = 20
+const WORKERCOUNT int = 100
 const DOMAINFILE string = "tld_clean.lst"
 
-func readFile() {
-
-}
-
 func main() {
-
 	domains := []string{}
 	domains, err := fileToList(DOMAINFILE, domains)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	zones := make(map[string]*Zone)
 	for _, domain := range domains {
 		zone := &Zone{fqdn: domain, fail: false}
@@ -44,17 +40,17 @@ func main() {
 		go worker(jobs, results)
 	}
 
-	counter := 0
+	//counter := 0
 	for k, v := range zones {
 		fmt.Println(k, v)
-		if counter > 100 {
-			break
-		}
-		counter++
+		//if counter > 100 {
+		//	break
+		//}
+		//counter++
 		jobs <- *v
 	}
-	close(jobs)
-	for {
+	//close(jobs)
+	for i := 0; i < len(zones); i++ {
 		foo := <-results
 		fmt.Println(foo)
 	}
@@ -70,6 +66,8 @@ func getNS(zone Zone) Zone {
 	nameserver, err := net.LookupNS(zone.fqdn)
 	if err != nil {
 		zone.fail = true
+	} else {
+		zone.fail = false
 	}
 	for _, ns := range nameserver {
 		zone.ns = append(zone.ns, ns.Host)

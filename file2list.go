@@ -10,7 +10,7 @@ func main() {
 	fmt.Println("start")
 	domains := []string{}
 
-	err, domains := fileToList("tld_clean.lst", domains)
+	domains, err := fileToList("tld_clean.lst", domains)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -18,10 +18,10 @@ func main() {
 	fmt.Println(domains)
 }
 
-func fileToList(fileName string, to []string) (error, []string) {
+func fileToList(fileName string, to []string) ([]string, error) {
 	fileIn, err := os.Open(fileName)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	defer fileIn.Close()
 
@@ -32,9 +32,9 @@ func fileToList(fileName string, to []string) (error, []string) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return err, nil
+		return nil, err
 	}
 
-	return nil, to
+	return to, nil
 
 }
