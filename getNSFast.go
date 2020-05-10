@@ -6,7 +6,6 @@ import (
 	//	"github.com/miekg/dns"
 	"net"
 	"os"
-	"sync"
 )
 
 type Zone struct {
@@ -16,9 +15,10 @@ type Zone struct {
 	zone []string
 }
 
+const BUFFERSIZE int = 10000
+
 func main() {
-	var wg sync.WaitGroup
-	wg.Add(1)
+
 	domainFile := "tld_clean.lst"
 	domains := []string{}
 	domains, err := fileToList(domainFile, domains)
@@ -32,29 +32,54 @@ func main() {
 		zones[zone.fqdn] = zone
 	}
 
-	fmt.Println(zones)
+	jobs := make(chan Zone, BUFFERSIZE)
+	results := make(chan Zone, BUFFERSIZE)
+	go worker(jobs, results)
+	go worker(jobs, results)
+	go worker(jobs, results)
+	go worker(jobs, results)
+
+	//fmt.Println(zones)
 	for k, v := range zones {
 		fmt.Println(k, v)
-		getNSp(*v)
-		//fmt.Println(foo)
+		//getNS(*v)
+		jobs <- *v
 	}
-
-	//for i, domain := range domains {
-	//	fmt.Println(i, domain)
-	//go getNSx(domain)
-	//answer, err := getNS(domain)
-	//if err != nil {
-	//	fmt.Println("err:", err)
-	//	continue
-	//}
-	//fmt.Println(answer, err)
-	//}
-	//fmt.Scanln()
-	wg.Done()
-	wg.Wait()
+	for {
+		foo := <-results
+		fmt.Println(foo)
+	}
 }
 
-//func getNSc(domain zone, c chan Zone) {
+func worker(jobs <-chan Zone, results chan<- Zone) {
+	for n := range jobs {
+		results <- getNS(n)
+	}
+}
+
+func getNS(zone Zone) Zone {
+	nameserver, err := net.LookupNS(zone.fqdn)
+	if err != nil {
+		zone.fail = true
+	}
+	//answer := []string{}
+	for _, ns := range nameserver {
+		//answer = append(answer, ns.Host)
+		zone.ns = append(zone.ns, ns.Host)
+	}
+	//zone.ns = answer
+	return zone
+}
+
+func getNSc(zone Zone, c chan Zone) {
+	nameserver, _ := net.LookupNS(zone.fqdn)
+	answer := []string{}
+	for _, ns := range nameserver {
+		answer = append(answer, ns.Host)
+	}
+	zone.ns = answer
+	c <- zone
+}
 
 func getNSp(zone Zone) {
 	nameserver, _ := net.LookupNS(zone.fqdn)
