@@ -64,8 +64,9 @@ func ZoneTransfer(domain string) {
 				case *dns.A:
 					//results.Add(strings.TrimRight(v.Header().Name, "."), v.A.String())
 					fmt.Println(strings.TrimRight(v.Header().Name, "."), v.A.String())
-				//case *dns.AAAA:
-				//	results.Add(strings.TrimRight(v.Header().Name, "."), v.AAAA.String())
+				case *dns.AAAA:
+					//	results.Add(strings.TrimRight(v.Header().Name, "."), v.AAAA.String())
+					fmt.Println(strings.TrimRight(v.Header().Name, "."), v.AAAA.String())
 				default:
 				}
 			}
