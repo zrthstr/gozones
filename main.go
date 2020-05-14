@@ -14,8 +14,8 @@ import (
 
 func main() {
 	fileUrl := "https://publicsuffix.org/list/effective_tld_names.dat"
-	filePathRaw := "tld_raw.lst"
-	filePathClean := "tld_clean.lst"
+	filePathRaw := "data/tld_raw.lst"
+	filePathClean := "data/tld_clean.lst"
 	if err := GetTLD(fileUrl, filePathRaw); err != nil {
 		panic(err)
 	}

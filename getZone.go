@@ -11,7 +11,8 @@ import (
 )
 
 //func ZoneTransferZ(fqdn string, NSs []string) {
-func ZoneTransfer(zone Zone) {
+func ZoneTransfer(zone Zone) Zone {
+	zone.zone = make(map[string]string)
 	fqdn := dns.Fqdn(zone.fqdn)
 
 	for _, server := range zone.ns {
@@ -24,38 +25,30 @@ func ZoneTransfer(zone Zone) {
 			log.Println(err)
 			continue
 		}
-
 		for envelope := range answerChan {
 			if envelope.Error != nil {
 				log.Println(envelope.Error)
 				break
 			}
-
 			for _, rr := range envelope.RR {
-				switch v := rr.(type) {
-				case *dns.A:
-					//results.Add(strings.TrimRight(v.Header().Name, "."), v.A.String())
-					fmt.Println(strings.TrimRight(v.Header().Name, "."), v.A.String())
-				case *dns.AAAA:
-					//	results.Add(strings.TrimRight(v.Header().Name, "."), v.AAAA.String())
-					fmt.Println(strings.TrimRight(v.Header().Name, "."), v.AAAA.String())
-				default:
-				}
+				zone.zone[server] += "\n" + rr.String()
 			}
 		}
 	}
+	return zone
 }
 
 type Zone struct {
 	fqdn string
 	fail bool
 	ns   []string
-	zone []string
+	//zone []string
+	zone map[string]string
 }
 
 const BUFFERSIZE int = 10000
 const WORKERCOUNT int = 200
-const DOMAINFILE string = "tld_clean.lst"
+const DOMAINFILE string = "data/tld_clean.lst"
 
 func main() {
 
@@ -75,15 +68,18 @@ func main() {
 	jobs := make(chan Zone, BUFFERSIZE)
 	results := make(chan Zone, BUFFERSIZE)
 
+	///////////////
 	zoneMe := Zone{fqdn: "zonetransfer.me", fail: false}
 	zoneMe = getNS(zoneMe)
 	fmt.Println(zoneMe)
 	fmt.Println(zoneMe.fqdn)
 	fmt.Println(zoneMe.ns)
 
-	ZoneTransfer(zoneMe)
+	zoneMe = ZoneTransfer(zoneMe)
+	fmt.Println(zoneMe)
 
 	os.Exit(1)
+	///////////////
 
 	for c := 0; c < WORKERCOUNT; c++ {
 		go worker(jobs, results)
