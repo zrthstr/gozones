@@ -10,6 +10,59 @@ import (
 	"strings"
 )
 
+type Zone struct {
+	fqdn      string
+	fail      bool
+	ns        []string
+	zone      map[string]string
+	zoneClean []string
+}
+
+const BUFFERSIZE int = 10000
+const WORKERCOUNT int = 200
+const DOMAINFILE string = "data/tld_clean.lst"
+
+func main() {
+
+	domains := []string{}
+	domains, err := fileToList(DOMAINFILE, domains)
+	if err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+
+	zones := make(map[string]*Zone)
+	for _, domain := range domains {
+		zone := &Zone{fqdn: domain, fail: false}
+		zones[zone.fqdn] = zone
+	}
+
+	jobs := make(chan Zone, BUFFERSIZE)
+	results := make(chan Zone, BUFFERSIZE)
+
+	for c := 0; c < WORKERCOUNT; c++ {
+		go worker(jobs, results)
+	}
+	for _, v := range zones {
+		jobs <- *v
+	}
+	for i := 0; i < len(zones); i++ {
+		log.Println(<-results)
+	}
+}
+
+func (zone Zone) String() string {
+	out := fmt.Sprintf("[ zone: %s ]\n", zone.fqdn)
+	out += fmt.Sprintf("fail.......: %t\n", zone.fail)
+	out += fmt.Sprintf("ns.........: %s\n", zone.ns)
+	out += fmt.Sprintf("zone.......: %s\n", zone.zone)
+	out += fmt.Sprintf("zoneClean..: (%d)\n", len(zone.zoneClean))
+	for _, v := range zone.zoneClean {
+		out = out + "\t" + v + "\n"
+	}
+	return out
+}
+
 //func ZoneTransferZ(fqdn string, NSs []string) {
 func ZoneTransfer(zone Zone) Zone {
 	zone.zone = make(map[string]string)
@@ -35,69 +88,39 @@ func ZoneTransfer(zone Zone) Zone {
 			}
 		}
 	}
+	// deduplicate all answers from different NameServers and store nicely in array
+	zone.zoneClean = func(allZones map[string]string) []string {
+		allLines := ""
+		for _, v := range allZones {
+			allLines += "\n" + v
+		}
+		var dedupLines []string
+		dedupDict := make(map[string]bool)
+		for _, line := range strings.Split(allLines, "\n") {
+			if line == "" {
+				continue
+			}
+			dedupDict[line] = true
+		}
+		for k, _ := range dedupDict {
+			dedupLines = append(dedupLines, k)
+		}
+		for _, v := range dedupLines {
+			fmt.Println(v)
+		}
+		//os.Exit(1)
+		return dedupLines
+	}(zone.zone)
 	return zone
-}
-
-type Zone struct {
-	fqdn string
-	fail bool
-	ns   []string
-	//zone []string
-	zone map[string]string
-}
-
-const BUFFERSIZE int = 10000
-const WORKERCOUNT int = 200
-const DOMAINFILE string = "data/tld_clean.lst"
-
-func main() {
-
-	domains := []string{}
-	domains, err := fileToList(DOMAINFILE, domains)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	zones := make(map[string]*Zone)
-	for _, domain := range domains {
-		zone := &Zone{fqdn: domain, fail: false}
-		zones[zone.fqdn] = zone
-	}
-
-	jobs := make(chan Zone, BUFFERSIZE)
-	results := make(chan Zone, BUFFERSIZE)
-
-	///////////////
-	zoneMe := Zone{fqdn: "zonetransfer.me", fail: false}
-	zoneMe = getNS(zoneMe)
-	fmt.Println(zoneMe)
-	fmt.Println(zoneMe.fqdn)
-	fmt.Println(zoneMe.ns)
-
-	zoneMe = ZoneTransfer(zoneMe)
-	fmt.Println(zoneMe)
-
-	os.Exit(1)
-	///////////////
-
-	for c := 0; c < WORKERCOUNT; c++ {
-		go worker(jobs, results)
-	}
-
-	for k, v := range zones {
-		fmt.Println(k, v)
-		jobs <- *v
-	}
-	for i := 0; i < len(zones); i++ {
-		foo := <-results
-		fmt.Println(foo)
-	}
 }
 
 func worker(jobs <-chan Zone, results chan<- Zone) {
 	for n := range jobs {
-		results <- getNS(n)
+		n = getNS(n)
+		if !n.fail {
+			n = ZoneTransfer(n)
+		}
+		results <- n
 	}
 }
 
