@@ -21,6 +21,7 @@ type Zone struct {
 const BUFFERSIZE int = 10000
 const WORKERCOUNT int = 200
 const DOMAINFILE string = "data/tld_clean.lst"
+const OUTDIR string = "data/zone/"
 
 func main() {
 
@@ -49,6 +50,16 @@ func main() {
 	for i := 0; i < len(zones); i++ {
 		log.Println(<-results)
 	}
+}
+
+func writeData(zones) {
+	if _, err := os.Stat(OUTDIR); !os.IsNotExist(err) {
+		err := os.RemoveAll(OUTDIR)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	err = os.Mkdir(OUTDIR)
 }
 
 func (zone Zone) String() string {
