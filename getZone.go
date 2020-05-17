@@ -78,19 +78,13 @@ func writeZone(zone Zone) error {
 		return nil
 	}
 	outArray := []string{""}
-	for _, dir := range strings.Split(zone.fqdn, ".") {
+	for _, dir := range strings.Split("zone."+zone.fqdn, ".") {
 		outArray = append([]string{dir}, outArray...)
-		//fmt.Println(dir)
 	}
-	base := strings.Split(OUTDIR, "/")
-	outArray = append(base, outArray...)
-	fmt.Println("outArray:", outArray)
-	//outFile = OUTDIR + strings.TrimSuffix(outFile, "/")
-	//outFile := filepath.Split(OUTDIR) + filepath.Join(outArray...)
+	//base := strings.Split(OUTDIR, "/")
+	outArray = append(strings.Split(OUTDIR, "/"), outArray...)
 	outFile := filepath.Join(outArray...)
 	outDir := filepath.Dir(outFile)
-	fmt.Println("outFile:", outFile)
-	fmt.Println("outDir:", outDir)
 
 	err := os.MkdirAll(outDir, 0777)
 	if err != nil {
@@ -103,25 +97,15 @@ func writeZone(zone Zone) error {
 		return err
 	}
 
-	//defer f.Close()
-	//w := bufio.NewWriter(f)
-	//_, err = w.WriteString( v.zoneClean)
-	//_, err = w.WriteString(strings.Join(v.zoneClean, "\n"))
 	fmt.Println("lenlenlen: ", len(zone.zoneClean))
 	n, err := f.WriteString(strings.Join(zone.zoneClean, "\n"))
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-	log.Println("nnnnnnnn:", n)
+	log.Println("Written: ", n, "lines to file: ", outFile)
 	f.Sync()
-	//w.Flush()
 
-	//err = w.Err()
-	//if err != nil {
-	//	log.Println(err)
-	//	continue
-	//}
 	f.Close()
 	return err
 }
@@ -170,10 +154,10 @@ func ZoneTransfer(zone Zone) Zone {
 		for _, v := range allZones {
 			allLines += "\n" + v
 		}
-		//if len(allLines) > MAXSORTLEN {
-		//	log.Println("Long zone detected: ", zone.fqdn, " ", len(allLines))
-		//	return []string{"toooo long:", zone.fqdn}
-		//}
+		if len(allLines) > MAXSORTLEN {
+			log.Println("Long zone detected: ", zone.fqdn, " ", len(allLines))
+			allLines = allLines[:2000] ///////////////////////////////////////////////
+		}
 		var dedupLines []string
 		dedupDict := make(map[string]bool)
 		for _, line := range strings.Split(allLines, "\n") {
@@ -191,8 +175,6 @@ func ZoneTransfer(zone Zone) Zone {
 		//os.Exit(1)
 		return dedupLines
 	}(zone.zone)
-
-	log.Println("XXXXXXXXXXXXx", len(zone.zoneClean))
 	return zone
 }
 
