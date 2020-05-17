@@ -73,6 +73,10 @@ func flushOldZones() {
 }
 
 func writeZone(zone Zone) error {
+	if len(zone.zoneClean) == 0 {
+		log.Println("Zone %s's zoneClean is empty. Not writing to disk", zone.fqdn)
+		return nil
+	}
 	if strings.Contains(zone.fqdn, "..") {
 		log.Println("Dir traversal detected. skipping:", zone.fqdn)
 		return nil
@@ -156,7 +160,7 @@ func ZoneTransfer(zone Zone) Zone {
 		}
 		if len(allLines) > MAXSORTLEN {
 			log.Println("Long zone detected: ", zone.fqdn, " ", len(allLines))
-			allLines = allLines[:2000] ///////////////////////////////////////////////
+			allLines = allLines[:MAXSORTLEN] ///////////////////////////////////////////////
 		}
 		var dedupLines []string
 		dedupDict := make(map[string]bool)
@@ -184,7 +188,9 @@ func worker(jobs <-chan Zone, results chan<- Zone) {
 		if !n.fail {
 			n = ZoneTransfer(n)
 		}
-		_ = writeZone(n)
+		if len(n.zoneClean) > 1 {
+			_ = writeZone(n)
+		}
 		results <- n
 	}
 }
