@@ -18,10 +18,12 @@ type Zone struct {
 	zoneClean []string
 }
 
+type Zones map[string]*Zone
+
 const BUFFERSIZE int = 10000
 const WORKERCOUNT int = 200
 const DOMAINFILE string = "data/tld_clean.lst"
-const OUTDIR string = "data/zone/"
+const OUTDIR string = "data/zones/"
 
 func main() {
 
@@ -32,7 +34,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	zones := make(map[string]*Zone)
+	zones := make(Zones)
+
 	for _, domain := range domains {
 		zone := &Zone{fqdn: domain, fail: false}
 		zones[zone.fqdn] = zone
@@ -48,18 +51,73 @@ func main() {
 		jobs <- *v
 	}
 	for i := 0; i < len(zones); i++ {
-		log.Println(<-results)
+		thisZone := <-results
+		zones[thisZone.fqdn] = &thisZone
+		//log.Println(<-results)
 	}
+	fmt.Println("zones:::,", len(zones))
+	fmt.Println("zones.zone.zoneClean:::,", len(zones["zonetransfer.me"].zoneClean))
+	writeData(zones)
 }
 
-func writeData(zones) {
+func writeData(zones Zones) {
 	if _, err := os.Stat(OUTDIR); !os.IsNotExist(err) {
 		err := os.RemoveAll(OUTDIR)
 		if err != nil {
 			log.Println(err)
 		}
 	}
-	err = os.Mkdir(OUTDIR)
+	err := os.Mkdir(OUTDIR, 0777)
+	if err != nil {
+		log.Println(err)
+	}
+	for _, v := range zones {
+		if strings.Contains(v.fqdn, "..") {
+			// seems sketchy, abort!
+			log.Println("Dir traversal detected. skipping:", v.fqdn)
+			continue
+		}
+		// build path
+		thisOutdir := ""
+		for _, dir := range strings.Split(v.fqdn, ".") {
+			thisOutdir = dir + "/" + thisOutdir
+			fmt.Println(dir)
+		}
+		thisOutdir = OUTDIR + thisOutdir
+		fmt.Println(thisOutdir)
+
+		err = os.MkdirAll(thisOutdir, 0777)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		outFile := thisOutdir + v.fqdn
+		/// f, err := os.Create("/tmp/dat2")
+		f, err := os.Create(outFile)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		defer f.Close()
+		//w := bufio.NewWriter(f)
+		//_, err = w.WriteString( v.zoneClean)
+		//_, err = w.WriteString(strings.Join(v.zoneClean, "\n"))
+		fmt.Println("lenlenlen: ", len(v.zoneClean))
+		n, err := f.WriteString(strings.Join(v.zoneClean, "\n"))
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		log.Println("nnnnnnnn:", n)
+		f.Sync()
+		//w.Flush()
+
+		//err = w.Err()
+		//if err != nil {
+		//	log.Println(err)
+		//	continue
+		//}
+	}
 }
 
 func (zone Zone) String() string {
@@ -122,6 +180,8 @@ func ZoneTransfer(zone Zone) Zone {
 		//os.Exit(1)
 		return dedupLines
 	}(zone.zone)
+
+	log.Println("XXXXXXXXXXXXx", len(zone.zoneClean))
 	return zone
 }
 
