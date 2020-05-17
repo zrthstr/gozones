@@ -82,8 +82,11 @@ func writeZone(zone Zone) error {
 		outArray = append([]string{dir}, outArray...)
 		//fmt.Println(dir)
 	}
+	base := strings.Split(OUTDIR, "/")
+	outArray = append(base, outArray...)
 	fmt.Println("outArray:", outArray)
 	//outFile = OUTDIR + strings.TrimSuffix(outFile, "/")
+	//outFile := filepath.Split(OUTDIR) + filepath.Join(outArray...)
 	outFile := filepath.Join(outArray...)
 	outDir := filepath.Dir(outFile)
 	fmt.Println("outFile:", outFile)
