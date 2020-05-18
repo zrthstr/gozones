@@ -1,4 +1,6 @@
-### build outside of GOPATH
+## visualize the internet form a DNS perspective
+
+build outside of GOPATH
 go mod init github.com/zrthstr/gozones
 go build
 go mod tidy
