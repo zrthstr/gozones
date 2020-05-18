@@ -40,7 +40,12 @@ def read_data():
             clean_lines = []
             for line in content:
                 try:
-                    clean_lines.append(line.split("\t"))
+                    path = zone.split("/")[3:-1][::-1]
+                    print("PATH:",path)
+                    this = line.split("\t")
+                    this.extend([zone])
+                    clean_lines.append(this)
+                    #clean_lines.extend(line.split("\t"))
                     TLD, TTL, IN, TYPE, RR = line.split("\t")
                     print("-"*40)
                     print("line:", line)
