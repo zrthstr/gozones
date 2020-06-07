@@ -77,19 +77,29 @@ func main() {
 		thisZone := <-results
 		zones[thisZone.fqdn] = &thisZone
 		//log.Println(<-results)
-		//if
-		//ZoneErrors.errMsg
-		fmt.Println("XXXXXXXXXXXXXXXXXXXXXXXXx", thisZone)
+		//zoneErrors = noteStats(thisZone, &zoneErrors)
+		noteStats(thisZone, &zoneErrors)
 	}
-	stats(zoneErrors)
+	printStats(zoneErrors)
 }
 
-func stats(zoneErrors ZoneErrors) {
+func noteStats(zone Zone, zoneErrors *ZoneErrors) {
+	for _, e := range zone.errMsg {
+		fmt.Println("XXXXXXXXXXXXXXXXXXXXXXXXx", e)
+		_, exists := zoneErrors.errMsg[e]
+		if exists {
+			zoneErrors.errMsg[e] += 1
+		} else {
+			zoneErrors.errMsg[e] = 1
+		}
+	}
+}
+
+func printStats(zoneErrors ZoneErrors) {
 	log.Println("--------stat--------")
 	for n, e := range zoneErrors.errMsg {
-		fmt.Println(n, e)
+		fmt.Printf("%5d: %s\n", e, n)
 	}
-	log.Println(zoneErrors)
 	log.Println("--------end.--------")
 }
 
