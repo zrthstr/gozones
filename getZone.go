@@ -171,8 +171,8 @@ func (zone Zone) String() string {
 	return out
 }
 
-//func ZoneTransferZ(fqdn string, NSs []string) {
-func ZoneTransfer(zone Zone) Zone {
+//func ZoneTransfer(zone Zone) Zone {
+func ZoneTransfer(zone *Zone) {
 	zone.zone = make(map[string]string)
 	fqdn := dns.Fqdn(zone.fqdn)
 
@@ -237,14 +237,15 @@ func ZoneTransfer(zone Zone) Zone {
 		//os.Exit(1)
 		return dedupLines
 	}(zone.zone)
-	return zone
+	//return zone
 }
 
 func worker(jobs <-chan Zone, results chan<- Zone) {
 	for n := range jobs {
-		n = getNS(n)
+		//n = getNS(n)
+		getNS(&n)
 		if !n.fail {
-			n = ZoneTransfer(n)
+			ZoneTransfer(&n)
 		}
 		if len(n.zoneClean) > 1 {
 			_ = writeZone(n)
@@ -253,7 +254,8 @@ func worker(jobs <-chan Zone, results chan<- Zone) {
 	}
 }
 
-func getNS(zone Zone) Zone {
+//func getNS(zone Zone) Zone {
+func getNS(zone *Zone) {
 	nameserver, err := net.LookupNS(zone.fqdn)
 	if err != nil {
 		zone.fail = true
@@ -263,7 +265,7 @@ func getNS(zone Zone) Zone {
 	for _, ns := range nameserver {
 		zone.ns = append(zone.ns, ns.Host)
 	}
-	return zone
+	//return zone
 }
 
 func fileToList(fileName string, to []string) ([]string, error) {
