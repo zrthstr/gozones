@@ -242,7 +242,6 @@ func ZoneTransfer(zone *Zone) {
 
 func worker(jobs <-chan Zone, results chan<- Zone) {
 	for n := range jobs {
-		//n = getNS(n)
 		getNS(&n)
 		if !n.fail {
 			ZoneTransfer(&n)
@@ -254,7 +253,6 @@ func worker(jobs <-chan Zone, results chan<- Zone) {
 	}
 }
 
-//func getNS(zone Zone) Zone {
 func getNS(zone *Zone) {
 	nameserver, err := net.LookupNS(zone.fqdn)
 	if err != nil {
@@ -265,7 +263,6 @@ func getNS(zone *Zone) {
 	for _, ns := range nameserver {
 		zone.ns = append(zone.ns, ns.Host)
 	}
-	//return zone
 }
 
 func fileToList(fileName string, to []string) ([]string, error) {
