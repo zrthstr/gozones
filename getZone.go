@@ -1,3 +1,5 @@
+///  make sure when one server gives zone to not ask next
+
 package main
 
 import (
@@ -8,7 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"reflect"
+	//"reflect"
 	"strings"
 )
 
@@ -29,6 +31,8 @@ type ZoneErrors struct {
 	errMsg map[string]int
 }
 
+var IGNOREERR = []string{"dns: bad xfr rcode: 9", "dns: bad xfr rcode: 5"}
+
 //func (errMsg string, zoneErrors ZoneErrors) errLog() {
 //	zoneErrors.count += 1
 //	fmt.Println("errMsg", errMsg)
@@ -38,13 +42,13 @@ type ZoneErrors struct {
 const BUFFERSIZE int = 10000
 
 //const WORKERCOUNT int = 200
-const WORKERCOUNT int = 50
+const WORKERCOUNT int = 112
 const DOMAINFILE string = "data/tld_clean.lst"
 const OUTDIR string = "data/zones/"
 const MAXSORTLEN = 10000
 
 func main() {
-	println(dns.RcodeNameError)
+	//println(dns.RcodeNameError)
 	flushOldZones()
 	domains := []string{}
 	domains, err := fileToList(DOMAINFILE, domains)
@@ -55,8 +59,6 @@ func main() {
 
 	zones := make(Zones)
 	zoneErrors := ZoneErrors{okey: 0, count: 0, errMsg: make(map[string]int)}
-	//zoneErrors.errMsg["ddddd"] = 1
-	//fmt.Println(zoneErrors)
 
 	for _, domain := range domains {
 		//zone := &Zone{fqdn: domain, fail: false, errMsg: make([]string)}
@@ -85,7 +87,7 @@ func main() {
 
 func noteStats(zone Zone, zoneErrors *ZoneErrors) {
 	for _, e := range zone.errMsg {
-		fmt.Println("XXXXXXXXXXXXXXXXXXXXXXXXx", e)
+		//fmt.Println("XXXXXXXXXXXXXXXXXXXXXXXXx", e)
 		_, exists := zoneErrors.errMsg[e]
 		if exists {
 			zoneErrors.errMsg[e] += 1
@@ -183,8 +185,9 @@ func ZoneTransfer(zone *Zone) {
 		transfer := new(dns.Transfer)
 		answerChan, err := transfer.In(msg, net.JoinHostPort(server, "53"))
 		if err != nil {
+			//zone.errMsg = append(zone.errMsg, err)
 			log.Println("6", err)
-			log.Println(reflect.TypeOf(err).String())
+			//log.Println(reflect.TypeOf(err).String())
 			continue
 		}
 		for envelope := range answerChan {
@@ -194,9 +197,7 @@ func ZoneTransfer(zone *Zone) {
 				zone.errMsg = append(zone.errMsg, errMsg)
 				switch errMsg {
 				case "dns: bad xfr rcode: 5":
-					//log.Println("..5")
 				case "dns: bad xfr rcode: 9":
-					//log.Println("..9")
 				default:
 					log.Println("7", envelope.Error.Error())
 					//log.Println("Other error:", reflect.TypeOf(envelope.Error.Error).String())
@@ -257,6 +258,10 @@ func getNS(zone *Zone) {
 	nameserver, err := net.LookupNS(zone.fqdn)
 	if err != nil {
 		zone.fail = true
+		// need more debug!
+		// add nslookup fail msg to zone
+		// and make sure zone transfer attempt wont happen
+		log.Println(err)
 	} else {
 		zone.fail = false
 	}
