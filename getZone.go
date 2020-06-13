@@ -1,4 +1,5 @@
-///  make sure when one server gives zone to not ask next
+// TODO:
+//  make sure when one server gives zone not to ask next for same domain
 
 package main
 
@@ -16,7 +17,8 @@ import (
 
 type Zone struct {
 	fqdn      string
-	fail      bool
+	nsFail    bool
+	axFail    bool
 	ns        []string
 	zone      map[string]string
 	zoneClean []string
@@ -62,7 +64,7 @@ func main() {
 
 	for _, domain := range domains {
 		//zone := &Zone{fqdn: domain, fail: false, errMsg: make([]string)}
-		zone := &Zone{fqdn: domain, fail: false}
+		zone := &Zone{fqdn: domain, axFail: false}
 		zones[zone.fqdn] = zone
 	}
 
@@ -109,7 +111,7 @@ func flushOldZones() {
 	if _, err := os.Stat(OUTDIR); !os.IsNotExist(err) {
 		err := os.RemoveAll(OUTDIR)
 		if err != nil {
-			log.Println("1", err)
+			log.Println("1 ...", err)
 		}
 	}
 	err := os.Mkdir(OUTDIR, 0777)
@@ -161,8 +163,9 @@ func writeZone(zone Zone) error {
 }
 
 func (zone Zone) String() string {
-	out := fmt.Sprintf("[ zone: %s ]\n", zone.fqdn)
-	out += fmt.Sprintf("fail.......: %t\n", zone.fail)
+	out := fmt.Sprintf("[ zone: %s ] \n", zone.fqdn)
+	out += fmt.Sprintf("axFail.......: %t\n", zone.axFail)
+	out += fmt.Sprintf("nsFail.......: %t\n", zone.nsFail)
 	out += fmt.Sprintf("ns.........: %+q\n", zone.ns)
 	out += fmt.Sprintf("zone.......: %s\n", zone.zone)
 	out += fmt.Sprintf("zoneClean..: (%d)\n", len(zone.zoneClean))
@@ -232,19 +235,14 @@ func ZoneTransfer(zone *Zone) {
 		for k, _ := range dedupDict {
 			dedupLines = append(dedupLines, k)
 		}
-		//for _, v := range dedupLines {
-		//	fmt.Println(v)
-		//}
-		//os.Exit(1)
 		return dedupLines
 	}(zone.zone)
-	//return zone
 }
 
 func worker(jobs <-chan Zone, results chan<- Zone) {
 	for n := range jobs {
 		getNS(&n)
-		if !n.fail {
+		if !n.axFail {
 			ZoneTransfer(&n)
 		}
 		if len(n.zoneClean) > 1 {
@@ -254,19 +252,31 @@ func worker(jobs <-chan Zone, results chan<- Zone) {
 	}
 }
 
+// TODO
+// make sure zone transfer attempt wont happen
 func getNS(zone *Zone) {
 	nameserver, err := net.LookupNS(zone.fqdn)
 	if err != nil {
-		zone.fail = true
-		// need more debug!
-		// add nslookup fail msg to zone
-		// and make sure zone transfer attempt wont happen
-		log.Println(err)
+		zone.axFail = true
+		errMsg := err.Error()
+		switch {
+		case strings.HasSuffix(errMsg, "no such host"):
+			fmt.Println(errMsg)
+			errMsg = "ns: no such host"
+		case strings.HasSuffix(errMsg, "server misbehaving"):
+			fmt.Println(errMsg)
+			errMsg = "ns: server misbehaving"
+		case strings.HasSuffix(errMsg, "i/o timeout"):
+			fmt.Println(errMsg)
+			errMsg = "ns: i/o timeout"
+		}
+		zone.errMsg = append(zone.errMsg, errMsg)
+		zone.nsFail = true
 	} else {
-		zone.fail = false
-	}
-	for _, ns := range nameserver {
-		zone.ns = append(zone.ns, ns.Host)
+		zone.nsFail = false
+		for _, ns := range nameserver {
+			zone.ns = append(zone.ns, ns.Host)
+		}
 	}
 }
 
