@@ -176,7 +176,6 @@ func (zone Zone) String() string {
 	return out
 }
 
-//func ZoneTransfer(zone Zone) Zone {
 func ZoneTransfer(zone *Zone) {
 	zone.zone = make(map[string]string)
 	fqdn := dns.Fqdn(zone.fqdn)
@@ -184,59 +183,75 @@ func ZoneTransfer(zone *Zone) {
 	for _, server := range zone.ns {
 		msg := new(dns.Msg)
 		msg.SetAxfr(fqdn)
-
 		transfer := new(dns.Transfer)
 		answerChan, err := transfer.In(msg, net.JoinHostPort(server, "53"))
 		if err != nil {
-			//zone.errMsg = append(zone.errMsg, err)
-			log.Println("6", err)
-			//log.Println(reflect.TypeOf(err).String())
+			// dial tcp 168.95.192.10:53: connect: no route to host
+			errMsg := err.Error()
+			switch {
+			case strings.HasSuffix(errMsg, "connect: no route to host"):
+				log.Println(errMsg)
+				errMsg = "connect: no route to host"
+			}
+			zone.errMsg = append(zone.errMsg, errMsg)
+			//log.Println("6", err)
 			continue
 		}
+		// https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6
 		for envelope := range answerChan {
 			if envelope.Error != nil {
 				errMsg := envelope.Error.Error()
-				//fmt.Println(envelope.Error.Error())
-				zone.errMsg = append(zone.errMsg, errMsg)
-				switch errMsg {
-				case "dns: bad xfr rcode: 5":
-				case "dns: bad xfr rcode: 9":
+				//switch errMsg {
+				switch {
+				case errMsg == "dns: bad xfr rcode: 5":
+				case errMsg == "dns: bad xfr rcode: 9":
+				case strings.HasSuffix(errMsg, ": i/o timeout"):
+					log.Println("7", errMsg)
+					errMsg = "axfr: read tcp i/o timeout"
+				case strings.HasSuffix(errMsg, "read: connection reset by peer"):
+					log.Println("7", errMsg)
+					errMsg = "axfr: read tcp connection reset by peer"
 				default:
-					log.Println("7", envelope.Error.Error())
-					//log.Println("Other error:", reflect.TypeOf(envelope.Error.Error).String())
-					// https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6
+					log.Println("7", errMsg)
 				}
+				zone.errMsg = append(zone.errMsg, errMsg)
 				//break //continue /// why was this break?
 			}
 			for _, rr := range envelope.RR {
 				zone.zone[server] += "\n" + rr.String()
 			}
+			// break on first zone for domain
+			if len(zone.zone[server]) > 1 {
+				break
+			}
 		}
 	}
-	//return zone
+	// for now not needed as we break ob the firt zone for a domain
+	//zone.zoneClean = dedupZone(zone)
+}
+
+func dedupZone(zone *Zone) []string {
 	// deduplicate all answers from different NameServers and store nicely in array
-	zone.zoneClean = func(allZones map[string]string) []string {
-		allLines := ""
-		for _, v := range allZones {
-			allLines += "\n" + v
+	allLines := ""
+	for _, v := range zone.zone {
+		allLines += "\n" + v
+	}
+	if len(allLines) > MAXSORTLEN {
+		log.Println("Long zone detected: ", zone.fqdn, " ", len(allLines))
+		allLines = allLines[:MAXSORTLEN] ///////////////////////////////////////////////
+	}
+	var dedupLines []string
+	dedupDict := make(map[string]bool)
+	for _, line := range strings.Split(allLines, "\n") {
+		if line == "" {
+			continue
 		}
-		if len(allLines) > MAXSORTLEN {
-			log.Println("Long zone detected: ", zone.fqdn, " ", len(allLines))
-			allLines = allLines[:MAXSORTLEN] ///////////////////////////////////////////////
-		}
-		var dedupLines []string
-		dedupDict := make(map[string]bool)
-		for _, line := range strings.Split(allLines, "\n") {
-			if line == "" {
-				continue
-			}
-			dedupDict[line] = true
-		}
-		for k, _ := range dedupDict {
-			dedupLines = append(dedupLines, k)
-		}
-		return dedupLines
-	}(zone.zone)
+		dedupDict[line] = true
+	}
+	for k, _ := range dedupDict {
+		dedupLines = append(dedupLines, k)
+	}
+	return dedupLines
 }
 
 func worker(jobs <-chan Zone, results chan<- Zone) {
