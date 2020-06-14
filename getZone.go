@@ -190,9 +190,14 @@ func ZoneTransfer(zone *Zone) {
 			errMsg := err.Error()
 			switch {
 			case strings.HasSuffix(errMsg, "connect: no route to host"):
-				log.Println(errMsg)
-				errMsg = "connect: no route to host"
+				log.Println("6.5", errMsg)
+				errMsg = "ns: connect no route to host"
+			case strings.HasSuffix(errMsg, "i/o timeout"):
+				log.Println("6.6", errMsg)
+				errMsg = "ns: dial tcp i/o timeout"
+
 			}
+			//errMsg = "xxx" + errMsg
 			zone.errMsg = append(zone.errMsg, errMsg)
 			//log.Println("6", err)
 			continue
@@ -201,7 +206,6 @@ func ZoneTransfer(zone *Zone) {
 		for envelope := range answerChan {
 			if envelope.Error != nil {
 				errMsg := envelope.Error.Error()
-				//switch errMsg {
 				switch {
 				case errMsg == "dns: bad xfr rcode: 5":
 				case errMsg == "dns: bad xfr rcode: 9":
