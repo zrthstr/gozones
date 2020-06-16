@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	//"reflect"
+	"flag"
 	"strings"
 )
 
@@ -23,6 +24,7 @@ type Zone struct {
 	zone      map[string]string
 	zoneClean []string
 	errMsg    []string
+	noAx      bool
 }
 
 type Zones map[string]*Zone
@@ -33,13 +35,7 @@ type ZoneErrors struct {
 	errMsg map[string]int
 }
 
-var IGNOREERR = []string{"dns: bad xfr rcode: 9", "dns: bad xfr rcode: 5"}
-
-//func (errMsg string, zoneErrors ZoneErrors) errLog() {
-//	zoneErrors.count += 1
-//	fmt.Println("errMsg", errMsg)
-//	//zoneErrors.errMsg[errMsg] += 1
-//}
+//var IGNOREERR = []string{"dns: bad xfr rcode: 9", "dns: bad xfr rcode: 5"}
 
 const BUFFERSIZE int = 10000
 
@@ -50,6 +46,13 @@ const OUTDIR string = "data/zones/"
 const MAXSORTLEN = 10000
 
 func main() {
+	noAx := flag.Bool("noax", false, "no axfr, just get ns")
+	flag.Parse()
+	if *noAx {
+		fmt.Println("skipping noAx", *noAx)
+	}
+
+	//const noAX bool = *noAXp
 	//println(dns.RcodeNameError)
 	flushOldZones()
 	domains := []string{}
@@ -64,7 +67,8 @@ func main() {
 
 	for _, domain := range domains {
 		//zone := &Zone{fqdn: domain, fail: false, errMsg: make([]string)}
-		zone := &Zone{fqdn: domain, axFail: false}
+		zone := &Zone{fqdn: domain, axFail: false, noAx: *noAx}
+		//zone := &Zone{fqdn: domain, axFail: false}
 		zones[zone.fqdn] = zone
 	}
 
@@ -89,7 +93,6 @@ func main() {
 
 func noteStats(zone Zone, zoneErrors *ZoneErrors) {
 	for _, e := range zone.errMsg {
-		//fmt.Println("XXXXXXXXXXXXXXXXXXXXXXXXx", e)
 		_, exists := zoneErrors.errMsg[e]
 		if exists {
 			zoneErrors.errMsg[e] += 1
@@ -133,7 +136,6 @@ func writeZone(zone Zone) error {
 	for _, dir := range strings.Split("zone."+zone.fqdn, ".") {
 		outArray = append([]string{dir}, outArray...)
 	}
-	//base := strings.Split(OUTDIR, "/")
 	outArray = append(strings.Split(OUTDIR, "/"), outArray...)
 	outFile := filepath.Join(outArray...)
 	outDir := filepath.Dir(outFile)
@@ -195,11 +197,13 @@ func ZoneTransfer(zone *Zone) {
 			case strings.HasSuffix(errMsg, "i/o timeout"):
 				log.Println("6.6", errMsg)
 				errMsg = "ns: dial tcp i/o timeout"
-
+			case strings.HasSuffix(errMsg, ": no such host"):
+				log.Println("6.6", errMsg)
+				errMsg = "ns: dail tcp lookup no such host"
+			default:
+				log.Println("6", err)
 			}
-			//errMsg = "xxx" + errMsg
 			zone.errMsg = append(zone.errMsg, errMsg)
-			//log.Println("6", err)
 			continue
 		}
 		// https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6
@@ -261,7 +265,7 @@ func dedupZone(zone *Zone) []string {
 func worker(jobs <-chan Zone, results chan<- Zone) {
 	for n := range jobs {
 		getNS(&n)
-		if !n.axFail {
+		if !n.axFail && !n.noAx {
 			ZoneTransfer(&n)
 		}
 		if len(n.zoneClean) > 1 {
