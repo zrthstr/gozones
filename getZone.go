@@ -30,7 +30,9 @@ type Zone struct {
 type Zones map[string]*Zone
 
 type ZoneErrors struct {
-	okey   int
+	total  int
+	nsFail int
+	axFail int
 	count  int
 	errMsg map[string]int
 }
@@ -63,7 +65,7 @@ func main() {
 	}
 
 	zones := make(Zones)
-	zoneErrors := ZoneErrors{okey: 0, count: 0, errMsg: make(map[string]int)}
+	zoneErrors := ZoneErrors{total: 0, axFail: 0, nsFail: 0, count: 0, errMsg: make(map[string]int)}
 
 	for _, domain := range domains {
 		//zone := &Zone{fqdn: domain, fail: false, errMsg: make([]string)}
@@ -88,10 +90,16 @@ func main() {
 		//zoneErrors = noteStats(thisZone, &zoneErrors)
 		noteStats(thisZone, &zoneErrors)
 	}
-	printStats(zoneErrors)
+	printStats(zoneErrors, *noAx)
 }
 
 func noteStats(zone Zone, zoneErrors *ZoneErrors) {
+	zoneErrors.total += 1
+	if !zone.nsFail {
+		zoneErrors.nsFail += 1
+	} else if !zone.axFail {
+		zoneErrors.axFail += 1
+	}
 	for _, e := range zone.errMsg {
 		_, exists := zoneErrors.errMsg[e]
 		if exists {
@@ -102,12 +110,20 @@ func noteStats(zone Zone, zoneErrors *ZoneErrors) {
 	}
 }
 
-func printStats(zoneErrors ZoneErrors) {
-	log.Println("--------stat--------")
+func printStats(zoneErrors ZoneErrors, noAx bool) {
+	log.Println("\n--------stat--------")
+	fmt.Printf("total:  %4d\n", zoneErrors.total)
+	fmt.Printf("nsFail: %4d/%d\n", zoneErrors.nsFail, zoneErrors.total)
+	if noAx {
+		fmt.Println("axFail:  -- / --")
+	} else {
+		fmt.Printf("axFail: %4d/%4d\n", zoneErrors.axFail, zoneErrors.total-zoneErrors.nsFail)
+	}
+	fmt.Println("--------------------")
 	for n, e := range zoneErrors.errMsg {
 		fmt.Printf("%5d: %s\n", e, n)
 	}
-	log.Println("--------end.--------")
+	fmt.Println("--------end.--------")
 }
 
 func flushOldZones() {
@@ -164,6 +180,8 @@ func writeZone(zone Zone) error {
 	return err
 }
 
+// TODO:
+// use this again
 func (zone Zone) String() string {
 	out := fmt.Sprintf("[ zone: %s ] \n", zone.fqdn)
 	out += fmt.Sprintf("axFail.......: %t\n", zone.axFail)
