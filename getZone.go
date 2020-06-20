@@ -37,11 +37,7 @@ type ZoneErrors struct {
 	errMsg map[string]int
 }
 
-//var IGNOREERR = []string{"dns: bad xfr rcode: 9", "dns: bad xfr rcode: 5"}
-
 const BUFFERSIZE int = 10000
-
-//const WORKERCOUNT int = 200
 const WORKERCOUNT int = 112
 const DOMAINFILE string = "data/tld_clean.lst"
 const OUTDIR string = "data/zones/"
@@ -51,11 +47,9 @@ func main() {
 	noAx := flag.Bool("noax", false, "no axfr, just get ns")
 	flag.Parse()
 	if *noAx {
-		fmt.Println("skipping noAx", *noAx)
+		fmt.Println("Skipping AXFR", *noAx)
 	}
 
-	//const noAX bool = *noAXp
-	//println(dns.RcodeNameError)
 	flushOldZones()
 	domains := []string{}
 	domains, err := fileToList(DOMAINFILE, domains)
@@ -69,8 +63,7 @@ func main() {
 
 	for _, domain := range domains {
 		//zone := &Zone{fqdn: domain, fail: false, errMsg: make([]string)}
-		zone := &Zone{fqdn: domain, axFail: false, noAx: *noAx}
-		//zone := &Zone{fqdn: domain, axFail: false}
+		zone := &Zone{fqdn: domain, nsFail: false, axFail: false, noAx: *noAx}
 		zones[zone.fqdn] = zone
 	}
 
@@ -87,7 +80,7 @@ func main() {
 		thisZone := <-results
 		zones[thisZone.fqdn] = &thisZone
 		//log.Println(<-results)
-		//zoneErrors = noteStats(thisZone, &zoneErrors)
+		log.Println(thisZone)
 		noteStats(thisZone, &zoneErrors)
 	}
 	printStats(zoneErrors, *noAx)
@@ -95,9 +88,9 @@ func main() {
 
 func noteStats(zone Zone, zoneErrors *ZoneErrors) {
 	zoneErrors.total += 1
-	if !zone.nsFail {
+	if zone.nsFail {
 		zoneErrors.nsFail += 1
-	} else if !zone.axFail {
+	} else if zone.axFail {
 		zoneErrors.axFail += 1
 	}
 	for _, e := range zone.errMsg {
@@ -117,7 +110,7 @@ func printStats(zoneErrors ZoneErrors, noAx bool) {
 	if noAx {
 		fmt.Println("axFail:  -- / --")
 	} else {
-		fmt.Printf("axFail: %4d/%4d\n", zoneErrors.axFail, zoneErrors.total-zoneErrors.nsFail)
+		fmt.Printf("axFail: %4d/%d\n", zoneErrors.axFail, zoneErrors.total-zoneErrors.nsFail)
 	}
 	fmt.Println("--------------------")
 	for n, e := range zoneErrors.errMsg {
@@ -184,8 +177,8 @@ func writeZone(zone Zone) error {
 // use this again
 func (zone Zone) String() string {
 	out := fmt.Sprintf("[ zone: %s ] \n", zone.fqdn)
-	out += fmt.Sprintf("axFail.......: %t\n", zone.axFail)
-	out += fmt.Sprintf("nsFail.......: %t\n", zone.nsFail)
+	out += fmt.Sprintf("axFail.....: %t\n", zone.axFail)
+	out += fmt.Sprintf("nsFail.....: %t\n", zone.nsFail)
 	out += fmt.Sprintf("ns.........: %+q\n", zone.ns)
 	out += fmt.Sprintf("zone.......: %s\n", zone.zone)
 	out += fmt.Sprintf("zoneClean..: (%d)\n", len(zone.zoneClean))
